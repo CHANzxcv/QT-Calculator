@@ -31,10 +31,11 @@ MainWindow::MainWindow(QWidget *parent)
     connect(ui->btnSub, &QPushButton::clicked, this, &MainWindow::operatorClicked);
     connect(ui->btnMul, &QPushButton::clicked, this, &MainWindow::operatorClicked);
     connect(ui->btnDiv, &QPushButton::clicked, this, &MainWindow::operatorClicked);
+    connect(ui->btnPow, &QPushButton::clicked, this, &MainWindow::operatorClicked);
+    connect(ui->btnMod, &QPushButton::clicked, this, &MainWindow::modClicked);
 
     // Functions
     connect(ui->btnSqrt, &QPushButton::clicked, this, &MainWindow::functionClicked);
-    connect(ui->btnPow, &QPushButton::clicked, this, &MainWindow::operatorClicked);  // e.g., '^'
     connect(ui->btnSin, &QPushButton::clicked, this, &MainWindow::functionClicked);
     connect(ui->btnCos, &QPushButton::clicked, this, &MainWindow::functionClicked);
     connect(ui->btnTan, &QPushButton::clicked, this, &MainWindow::functionClicked);
@@ -55,6 +56,12 @@ MainWindow::MainWindow(QWidget *parent)
     // Angle mode toggles
     connect(ui->btnRad, &QPushButton::clicked, this, &MainWindow::setRadianMode);
     connect(ui->btnDeg, &QPushButton::clicked, this, &MainWindow::setDegreeMode);
+
+    // Arrow keys
+    connect(ui->btnLeft, &QPushButton::clicked, this, &MainWindow::arrowClicked);
+    connect(ui->btnRight, &QPushButton::clicked, this, &MainWindow::arrowClicked);
+    connect(ui->btnUp, &QPushButton::clicked, this, &MainWindow::arrowClicked);
+    connect(ui->btnDown, &QPushButton::clicked, this, &MainWindow::arrowClicked);
 }
 
 MainWindow::~MainWindow()
@@ -67,37 +74,53 @@ void MainWindow::digitClicked()
     if (!button) return;
 
     QString digit = button->text();
-    currentInput += digit;
+    currentInput.insert(cursorPosition, digit); // insert at cursor
+    cursorPosition += digit.length();           // move cursor forward
+    ui->display->setTextFormat(Qt::RichText);
+    ui->display->setText(formatForDisplay(currentInput));
+}
+
+// Modulo handler (Mod)
+void MainWindow::modClicked() {
+    currentInput.insert(cursorPosition, "mod");
+    cursorPosition += 3;
     ui->display->setTextFormat(Qt::RichText);
     ui->display->setText(formatForDisplay(currentInput));
 }
 
 // Operator handler (+, -, *, /, ^)
-void MainWindow::operatorClicked()
-{
+void MainWindow::operatorClicked() {
     QPushButton *button = qobject_cast<QPushButton*>(sender());
     if (!button) return;
 
     QString buttonText = button->text();
     QString op;
 
-    // Convert display symbol to parser symbol
-    if (buttonText == "×" || buttonText == "x") op = "*";     // ✅ fix for both × and x
+    // Convert GUI symbols to parser-friendly code
+    if (buttonText == "×") op = "*";
     else if (buttonText == "÷") op = "/";
     else if (buttonText == "xⁿ") op = "^";
+    else if (buttonText == "mod") op = "%";
     else op = buttonText;
 
-    currentInput += op; // currentInput uses parser-friendly version
+    currentInput.insert(cursorPosition, op);
+    cursorPosition += op.length();
+
     ui->display->setTextFormat(Qt::RichText);
-    ui->display->setText(formatForDisplay(currentInput)); // display shows fancy symbols
+    ui->display->setText(formatForDisplay(currentInput));
 }
+
 
 
 // Equals button (=)
 void MainWindow::equalClicked()
 {
-    QString expr = currentInput;  // ✅ Use raw input instead of formatted display
+    QString expr = currentInput;
+    expr.replace("mod", "%", Qt::CaseInsensitive); // Replace 'mod' with '%'
     Parser parser(isRadianMode);
+
+    // Debug: Show the expression being evaluated
+    qDebug() << "Evaluating expression:" << expr;
 
     try {
         double result = parser.evaluate(expr.toStdString());
@@ -113,27 +136,26 @@ void MainWindow::equalClicked()
 
 
 // Function handler (sqrt, sin, cos, tan)
-void MainWindow::functionClicked()
-{
+void MainWindow::functionClicked() {
     QPushButton *button = qobject_cast<QPushButton*>(sender());
     if (!button) return;
 
     QString function = button->text();
+    QString funcText = (function == "√") ? "sqrt(" : function + "(";
 
-    if (function == "√") {
-        currentInput += "sqrt(";  // ✅ FIXED: use parser-recognized name
-    } else {
-        currentInput += function + "(";
-    }
+    currentInput.insert(cursorPosition, funcText);
+    cursorPosition += funcText.length();
 
     ui->display->setTextFormat(Qt::RichText);
     ui->display->setText(formatForDisplay(currentInput));
 }
 
+
 // Use Ans button
 void MainWindow::ansClicked()
 {
-    currentInput += lastAnswer;
+    currentInput.insert(cursorPosition, lastAnswer);
+    cursorPosition += lastAnswer.length();
     ui->display->setTextFormat(Qt::RichText);  // <- already there ✅
     ui->display->setText(formatForDisplay(currentInput)); // <- this was missing ❗
 }
@@ -151,7 +173,10 @@ void MainWindow::clearAll()
 void MainWindow::delClicked()
 {
     if (!currentInput.isEmpty()) {
-        currentInput.chop(1); // remove last char
+        if (cursorPosition > 0) {
+            currentInput.remove(cursorPosition - 1, 1);
+            cursorPosition--;
+        }
         ui->display->setTextFormat(Qt::RichText);  // <- already there ✅
         ui->display->setText(formatForDisplay(currentInput)); // <- this was missing ❗
     }
@@ -171,15 +196,18 @@ void MainWindow::appendSymbol()
     QPushButton *button = qobject_cast<QPushButton*>(sender());
     if (!button) return;
 
-    currentInput += button->text();  // '(' or ')'
+    QString symbol = button->text();
+    currentInput.insert(cursorPosition, symbol);
+    cursorPosition += symbol.length();
     ui->display->setTextFormat(Qt::RichText);  // <- already there ✅
     ui->display->setText(formatForDisplay(currentInput)); // <- this was missing ❗;
 }
 void MainWindow::fractionClicked()
 {
-    currentInput += "/";  // ✅ use a real division symbol
-    ui->display->setTextFormat(Qt::RichText);  // <- already there ✅
-    ui->display->setText(formatForDisplay(currentInput)); // <- this was missing ❗
+    currentInput.insert(cursorPosition, "/");
+    cursorPosition++;
+    ui->display->setTextFormat(Qt::RichText);
+    ui->display->setText(formatForDisplay(currentInput));
 }
 
 void MainWindow::setRadianMode()
@@ -199,18 +227,46 @@ void MainWindow::powerClicked()
     ui->display->setTextFormat(Qt::RichText);  // <- already there ✅
     ui->display->setText(formatForDisplay(currentInput)); // <- this was missing ❗
 }
+
+void MainWindow::arrowClicked() {
+    QPushButton *button = qobject_cast<QPushButton*>(sender());
+    if (!button) return;
+
+    QString name = button->objectName();
+
+    if (name == "btnLeft" && cursorPosition > 0) {
+        cursorPosition--;
+    } else if (name == "btnRight" && cursorPosition < currentInput.length()) {
+        cursorPosition++;
+    } else if (name == "btnUp") {
+        // Optional: add scroll-up functionality
+    } else if (name == "btnDown") {
+        // Optional: add scroll-down functionality
+    }
+
+    // Insert cursor visually in display
+    QString inputWithCursor = currentInput;
+    inputWithCursor.insert(cursorPosition, "|");
+
+    ui->display->setTextFormat(Qt::RichText);
+    ui->display->setText(formatForDisplay(inputWithCursor));
+}
 QString MainWindow::formatForDisplay(const QString& input) {
     QString output;
-    for (int i = 0; i < input.length(); ++i) {
+    int i = 0;
+
+    while (i < input.length()) {
         QChar ch = input[i];
 
-        // Convert "sqrt" into "√"
+        // Convert "sqrt" to "√"
         if (input.mid(i, 4) == "sqrt") {
             output += "√";
-            i += 3;  // skip 's','q','r','t'
+            i += 4;
+            continue;
         }
-        // Superscript formatting for ^ (power)
-        else if (ch == '^' && i + 1 < input.length()) {
+
+        // Power formatting (superscript)
+        if (ch == '^' && i + 1 < input.length()) {
             QChar next = input[i + 1];
             QString sup;
             if (next == '0') sup = "⁰";
@@ -226,28 +282,43 @@ QString MainWindow::formatForDisplay(const QString& input) {
             else sup = "<sup>" + QString(next) + "</sup>";
 
             output += sup;
-            ++i;  // skip the superscript digit
+            i += 2;
+            continue;
         }
-        // Fractions like a/b
-        else if (ch == '/' && i > 0 && i + 1 < input.length()) {
-            QChar numerator = input[i - 1];
-            QChar denominator = input[i + 1];
 
-            QString fractionHtml =
-                "<span style='display:inline-block; text-align:center;'>"
-                "<span style='border-bottom:1px solid;'>" + QString(numerator) + "</span><br>" +
-                QString(denominator) + "</span>";
+        // Fraction formatting (just show as "numerator/denominator")
+        if (ch == '/' && i > 0 && i + 1 < input.length()) {
+            QString numerator, denominator;
+            int j = i - 1;
+            while (j >= 0 && (input[j].isDigit() || input[j] == '.')) {
+                numerator.prepend(input[j]);
+                --j;
+            }
+            int k = i + 1;
+            while (k < input.length() && (input[k].isDigit() || input[k] == '.')) {
+                denominator += input[k];
+                ++k;
+            }
+            if (!numerator.isEmpty() && !denominator.isEmpty() &&
+                (j < 0 || !input[j].isLetterOrNumber()) &&
+                (k >= input.length() || !input[k].isLetterOrNumber())) {
+                output.chop(numerator.length());
+                output += numerator + "/" + denominator;
+                i = k;
+                continue;
+            }
+        }
 
-            output.chop(1);  // remove numerator that was already added
-            output += fractionHtml;
-            ++i;  // skip denominator
-        }
-        else {
-            if (ch == '*') output += "×";
-            else if (ch == '/') output += "÷";
-            else output += ch;
-        }
+        // Operator symbols
+        if (ch == '*') output += "×";
+        else if (ch == '/') output += "÷";
+        else output += ch;
+
+        ++i;
     }
 
     return output;
 }
+
+
+

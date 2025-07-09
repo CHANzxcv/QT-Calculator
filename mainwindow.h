@@ -27,11 +27,12 @@ private slots:
     void ansClicked();
     void engClicked();
     void powerClicked();
-    void appendSymbol();        // For btnOpen, btnClose
-    void fractionClicked();     // For btnFrac
-    void setRadianMode();       // For btnRad
-    void setDegreeMode();       // For btnDeg
-
+    void appendSymbol();
+    void fractionClicked();
+    void setRadianMode();
+    void setDegreeMode();
+    void arrowClicked();
+    void modClicked();
 
 private:
     Ui::MainWindow *ui;
@@ -41,6 +42,7 @@ private:
     QString pendingOperator;
     double storedValue = 0;
     bool isRadianMode = false; // false = degree, true = radian
+    int cursorPosition = 0;
 };
 
 #endif // MAINWINDOW_H

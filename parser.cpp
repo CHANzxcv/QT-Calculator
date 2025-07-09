@@ -26,7 +26,8 @@ Parser::Parser(bool radianMode) : isRadian(radianMode) {
 
 
 bool Parser::isOperator(const std::string& token) {
-    return token == "+" || token == "-" || token == "*" || token == "/" || token == "^";
+    return token == "+" || token == "-" || token == "*" || token == "/" || token == "^" || token == "%";
+
 }
 
 bool Parser::isFunction(const std::string& token) {
@@ -46,6 +47,7 @@ double Parser::applyOperator(const std::string& op, double a, double b) {
     if (op == "*") return a * b;
     if (op == "/") return a / b;
     if (op == "^") return std::pow(a, b);
+    if (op == "%") return std::fmod(a, b);
     throw std::runtime_error("Unknown operator");
 }
 
@@ -90,8 +92,8 @@ std::vector<std::string> Parser::tokenize(const std::string& expr) {
             else if (c == 'x' || c == '×') {
                 tokens.push_back("*");
             }
-            // Standard operators or parentheses
-            else if (c == '+' || c == '-' || c == '*' || c == '/' || c == '^' || c == '(' || c == ')') {
+            // Standard operators or parentheses (including modulo)
+            else if (c == '+' || c == '-' || c == '*' || c == '/' || c == '^' || c == '%' || c == '(' || c == ')') {
                 tokens.push_back(std::string(1, c));
             }
         }

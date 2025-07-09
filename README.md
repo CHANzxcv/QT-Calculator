@@ -34,7 +34,7 @@ A calculator app built using \*\*C++ and Qt\*\*, featuring a graphical user inte
 
 
 
-!\[Calculator Screenshot](https://raw.githubusercontent.com/CHANzxcv/QT-Calculator/main/demo.png)
+![Calculator Screenshot](demo.png)
 
 
 
